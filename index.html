@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0c0e">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily 365">
+<meta name="description" content="One photograph a day, stamped with the date, the day number and what you earned and spent.">
+<title>Daily 365</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="masthead">
+    <div>
+      <div class="wordmark">Daily <em>365</em></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="daymark" id="dayMark" title="Today's day number">DAY —</div>
+  </header>
+
+  <main>
+
+    <!-- ============================================================ CAMERA -->
+    <section class="view is-active" id="view-camera" aria-label="Camera">
+
+      <div class="viewfinder" id="viewfinder">
+        <video id="camera" autoplay playsinline muted></video>
+        <img class="ghost" id="ghost" alt="">
+
+        <div class="guides" id="guides" hidden>
+          <div class="oval"></div>
+          <div class="eyeline"><span>EYE LINE</span></div>
+          <div class="centre"></div>
+        </div>
+
+        <div class="vf-bar">
+          <span class="vf-status" id="vfStatus">starting camera…</span>
+          <div class="spacer"></div>
+          <button class="icon-btn" id="btnGallery" title="Use a photo" aria-label="Use a photo from the gallery">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/>
+              <path d="M21 16l-5-5-6 6-3-3-4 4"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btnFlip" title="Flip camera" aria-label="Flip between front and rear camera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 8h13a4 4 0 0 1 0 8H9"/><path d="M6 5L3 8l3 3"/><path d="M12 19l-3-3 3-3"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btnSwitchDevice" title="Choose camera" aria-label="Choose camera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3.2"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btnGuides" title="Framing guides" aria-label="Toggle framing guides" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btnGhost" title="Ghost of last photo" aria-label="Toggle ghost overlay" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="cam-fallback" id="camFallback">
+          <div>
+            <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3.2"/><path d="M3 3l18 18"/>
+            </svg>
+            <p id="camMessage">Camera unavailable.</p>
+            <div class="actions">
+              <button class="btn quiet slim" id="btnCamRetry">Try again</button>
+              <button class="btn quiet slim" id="btnCamGallery">Use a photo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="entry-grid">
+        <div class="entry">
+          <label for="earn">Earned</label>
+          <div class="input-row">
+            <span class="symbol">₹</span>
+            <input id="earn" inputmode="decimal" autocomplete="off" placeholder="0" enterkeyhint="next">
+          </div>
+        </div>
+        <div class="entry">
+          <label for="spend">Spent</label>
+          <div class="input-row">
+            <span class="symbol">₹</span>
+            <input id="spend" inputmode="decimal" autocomplete="off" placeholder="0" enterkeyhint="done">
+          </div>
+        </div>
+      </div>
+
+      <dl class="tally">
+        <div><dt>Earn total</dt><dd class="gold" id="tallyEarn">₹0</dd></div>
+        <div><dt>Spend total</dt><dd id="tallySpend">₹0</dd></div>
+        <div><dt>Net</dt><dd id="tallyNet">₹0</dd></div>
+      </dl>
+
+      <button class="btn capture-btn" id="btnCapture">
+        <span class="dot"></span>
+        Capture day <span id="captureDay">—</span>
+      </button>
+
+      <input type="file" id="fileInput" accept="image/*" class="visually-hidden">
+    </section>
+
+    <!-- ============================================================ REVIEW -->
+    <section class="view" id="view-review" aria-label="Review photograph">
+      <div class="plate">
+        <img id="reviewImage" alt="Photograph preview">
+        <div class="saved-flag" id="savedFlag">
+          <div>
+            <strong>Saved</strong>
+            <code id="savedFile"></code>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-group" style="margin-top:12px">
+        <button class="btn quiet" id="btnRetake">Retake</button>
+        <button class="btn" id="btnSave">Save</button>
+      </div>
+      <button class="btn quiet slim" id="btnSaveDownload" style="margin-top:8px">
+        Save and download a copy
+      </button>
+      <p class="caption" id="reviewCaption"></p>
+    </section>
+
+    <!-- ============================================================ LEDGER -->
+    <section class="view" id="view-ledger" aria-label="Ledger">
+      <div class="ledger-head">
+        <div class="rule" style="margin:0; flex:1">Ledger</div>
+        <span class="count" id="ledgerCount">0 days</span>
+      </div>
+      <div id="ledgerList"></div>
+    </section>
+
+    <!-- ============================================================ SETTINGS -->
+    <section class="view" id="view-settings" aria-label="Settings">
+
+      <div class="rule">Streak</div>
+      <div class="panel">
+        <div class="field-row">
+          <div class="meta">
+            <div class="name">Day one</div>
+            <div class="note">The day number counts from this date. A fixed date stays honest when you skip a day.</div>
+          </div>
+          <input type="date" id="startDate">
+        </div>
+        <div class="field-row">
+          <div class="meta"><div class="name">Date on the photo</div></div>
+          <select id="dateFormat">
+            <option value="long">07 Nov 2026</option>
+            <option value="slash">07/11/2026</option>
+            <option value="iso">2026-11-07</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="rule">Camera</div>
+      <div class="panel">
+        <div class="field-row">
+          <div class="meta">
+            <div class="name">Video source</div>
+            <div class="note" id="deviceName">not selected yet</div>
+          </div>
+          <button class="btn quiet slim" id="btnPickDevice" style="width:auto">Change</button>
+        </div>
+        <div class="field-row">
+          <div class="meta">
+            <div class="name">Framing guides</div>
+            <div class="note">Oval and eye line. Framing only — never written into the file.</div>
+          </div>
+          <button class="switch" id="swGuides" role="switch" aria-checked="true" aria-label="Framing guides"></button>
+        </div>
+        <div class="field-row">
+          <div class="meta">
+            <div class="name">Ghost overlay</div>
+            <div class="note">Yesterday's photograph at 28% behind the live view. The best alignment tool there is.</div>
+          </div>
+          <button class="switch" id="swGhost" role="switch" aria-checked="true" aria-label="Ghost overlay"></button>
+        </div>
+        <div class="field-row">
+          <div class="meta">
+            <div class="name">Save mirrored</div>
+            <div class="note">Match the selfie preview. Turn off if your text reads backwards.</div>
+          </div>
+          <button class="switch" id="swMirror" role="switch" aria-checked="true" aria-label="Save mirrored"></button>
+        </div>
+      </div>
+
+      <div class="rule">Data</div>
+      <div class="panel">
+        <div class="stack">
+          <button class="btn quiet slim" id="btnExport">Export CSV</button>
+          <button class="btn quiet slim" id="btnImport">Import CSV</button>
+        </div>
+        <p class="caption">
+          Export regularly. It is the only copy of your numbers outside this browser, and the columns
+          match the spreadsheet exactly.
+        </p>
+        <input type="file" id="csvInput" accept=".csv,text/csv" class="visually-hidden">
+      </div>
+
+      <div class="rule">Google Drive — optional</div>
+      <div class="panel">
+        <div class="field-row" style="align-items:stretch; flex-direction:column; gap:8px">
+          <div class="meta">
+            <div class="name">OAuth client ID</div>
+            <div class="note">
+              From your own Google Cloud project. The app requests <code>drive.file</code> only, so it can
+              see nothing except photographs it created itself.
+            </div>
+          </div>
+          <input type="text" id="clientId" class="wide" spellcheck="false"
+                 placeholder="xxxx.apps.googleusercontent.com">
+        </div>
+        <div class="stack" style="margin-top:12px">
+          <button class="btn quiet slim" id="btnDrive">Connect Drive</button>
+          <button class="btn quiet slim" id="btnUploadAll">Upload photos not yet sent</button>
+        </div>
+        <div class="field-row" style="margin-top:10px">
+          <div class="meta">
+            <div class="name">Upload automatically</div>
+            <div class="note">After you press Save — never before.</div>
+          </div>
+          <button class="switch" id="swAutoDrive" role="switch" aria-checked="false" aria-label="Upload automatically"></button>
+        </div>
+        <p class="caption" id="driveStatus">Not connected.</p>
+      </div>
+
+      <div class="rule">Danger</div>
+      <div class="panel">
+        <button class="btn danger slim" id="btnWipe">Delete every entry</button>
+        <p class="caption">Photographs and numbers live in this browser only. Export first.</p>
+      </div>
+
+      <p class="colophon">Daily 365 · v1.0</p>
+    </section>
+
+  </main>
+
+  <nav class="tabbar" role="tablist">
+    <div class="inner">
+      <button role="tab" data-tab="view-camera" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+          <circle cx="12" cy="13" r="3.2"/>
+        </svg>
+        Camera
+      </button>
+      <button role="tab" data-tab="view-ledger" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+        Ledger
+      </button>
+      <button role="tab" data-tab="view-settings" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/>
+        </svg>
+        Settings
+      </button>
+    </div>
+  </nav>
+</div>
+
+<dialog class="sheet" id="dialog">
+  <h3 id="dialogTitle"></h3>
+  <p id="dialogBody"></p>
+  <div class="actions" id="dialogActions"></div>
+</dialog>
+
+<div class="alert" id="alert" role="status" aria-live="polite"></div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

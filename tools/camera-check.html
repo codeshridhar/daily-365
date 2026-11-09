@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Camera check — Daily 365</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  body { padding: 0; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+  h1 { font-family: var(--serif); font-size: 20px; font-weight: 400; margin: 8px 0 4px; }
+  .lede { color: var(--ink-faint); font-size: 12.5px; margin: 0 0 18px; line-height: 1.6; }
+  .verdict {
+    display: none; padding: 13px 15px; border-radius: var(--radius);
+    font-size: 13px; line-height: 1.6; margin-bottom: 14px;
+  }
+  .verdict.show { display: block; }
+  .verdict.good { background: #12211a; border: 1px solid #24402f; color: var(--sage); }
+  .verdict.bad  { background: #241413; border: 1px solid #4a2421; color: var(--terra); }
+  .line {
+    display: flex; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--line-soft); font-size: 12.5px;
+  }
+  .line:last-child { border-bottom: 0; }
+  .line .k { flex: 0 0 132px; color: var(--ink-faint); }
+  .line .v { flex: 1; font-family: var(--mono); font-size: 11.5px; word-break: break-word; }
+  .yes { color: var(--sage); } .no { color: var(--terra); } .maybe { color: var(--gold); }
+  .dev { padding: 9px 11px; background: var(--surface-2); border-radius: 6px; margin-bottom: 6px; font-size: 12.5px; }
+  .dev small { display: block; color: var(--ink-ghost); font-family: var(--mono); font-size: 10px; margin-top: 3px; word-break: break-all; }
+  video { width: 100%; max-width: 320px; border-radius: var(--radius); background: #000; display: none; margin-top: 10px; }
+  video.show { display: block; }
+  textarea {
+    width: 100%; min-height: 130px; background: var(--bg); color: var(--ink-faint);
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px;
+    font-family: var(--mono); font-size: 11px; line-height: 1.6; resize: vertical;
+  }
+  .row-btns { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .row-btns .btn { width: auto; padding-inline: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Camera check</h1>
+  <p class="lede">
+    Reports whether the browser can see a camera at all, and names every device it finds.
+    Nothing leaves this page.
+  </p>
+
+  <div class="row-btns">
+    <button class="btn" id="btnRun">Run the check</button>
+    <button class="btn quiet" id="btnCopy">Copy report</button>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <div class="panel">
+    <h2>Environment</h2>
+    <div id="env"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Video devices</h2>
+    <div id="devices" style="color:var(--ink-faint);font-size:12.5px">Not checked yet.</div>
+    <video id="preview" autoplay playsinline muted></video>
+  </div>
+
+  <div class="panel">
+    <h2>Attempts</h2>
+    <div id="attempts" style="color:var(--ink-faint);font-size:12.5px">Not checked yet.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Report</h2>
+    <textarea id="report" readonly placeholder="Run the check first."></textarea>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const lines = [];
+
+function write(line) {
+  lines.push(line);
+  $("report").value = lines.join("\n");
+}
+
+function row(key, value) {
+  return `<div class="line"><div class="k">${key}</div><div class="v">${value}</div></div>`;
+}
+
+function verdict(kind, html) {
+  const box = $("verdict");
+  box.className = "verdict show " + kind;
+  box.innerHTML = html;
+}
+
+function describeEnvironment() {
+  const secure = window.isSecureContext;
+  const framed = window.self !== window.top;
+  const hasApi = Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+  $("env").innerHTML = [
+    row("Page", location.protocol + "//" + location.host),
+    row("Secure context", secure ? '<span class="yes">yes</span>'
+                                 : '<span class="no">no — cameras are blocked</span>'),
+    row("Inside a frame", framed ? '<span class="no">yes — cameras are blocked</span>'
+                                 : '<span class="yes">no</span>'),
+    row("Media API", hasApi ? '<span class="yes">available</span>'
+                            : '<span class="no">missing</span>')
+  ].join("");
+
+  write("page: " + location.href.split("?")[0]);
+  write("secure context: " + secure);
+  write("in frame: " + framed);
+  write("media API: " + hasApi);
+
+  if (!secure || framed || !hasApi) {
+    verdict("bad",
+      "<b>This page cannot use a camera.</b><br>" +
+      (framed ? "It is inside a preview frame. Open the URL in a normal browser tab. " : "") +
+      (!secure ? "It is not on https:// or localhost. " : "") +
+      (!hasApi ? "This browser has no camera API. " : ""));
+    return false;
+  }
+  return true;
+}
+
+async function listDevices(note) {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cameras = devices.filter((device) => device.kind === "videoinput");
+  write("devices (" + note + "): " + cameras.length);
+
+  const box = $("devices");
+  if (!cameras.length) {
+    box.innerHTML = '<span class="no">No video devices at all.</span>';
+    return cameras;
+  }
+
+  box.innerHTML = cameras.map((camera, index) => {
+    const label = camera.label || "(name hidden until the camera is allowed once)";
+    write("  [" + index + "] " + label);
+    return `<div class="dev">${index + 1}. ${label}
+      <small>${camera.deviceId.slice(0, 20)}…</small></div>`;
+  }).join("");
+
+  return cameras;
+}
+
+async function attempt(label, constraints) {
+  write("");
+  write("attempt: " + label);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings ? track.getSettings() : {};
+    write("  ok: " + (track.label || "unnamed") + " " +
+          (settings.width || "?") + "x" + (settings.height || "?"));
+
+    const preview = $("preview");
+    if (!preview.srcObject) {
+      preview.srcObject = stream;
+      preview.classList.add("show");
+    } else {
+      stream.getTracks().forEach((t) => t.stop());
+    }
+
+    return { ok: true, label: track.label || "unnamed camera" };
+  } catch (error) {
+    write("  failed: " + error.name + " — " + error.message);
+    return { ok: false, name: error.name };
+  }
+}
+
+async function run() {
+  lines.length = 0;
+  $("preview").classList.remove("show");
+
+  if (!describeEnvironment()) return;
+
+  await listDevices("before permission");
+
+  const results = [];
+  results.push(await attempt("front camera (facingMode user)",
+    { video: { facingMode: "user" }, audio: false }));
+  results.push(await attempt("any camera", { video: true, audio: false }));
+
+  const cameras = await listDevices("after permission");
+  for (const [index, camera] of cameras.entries()) {
+    results.push(await attempt("device " + (index + 1) + ": " + (camera.label || "unnamed"),
+      { video: { deviceId: { exact: camera.deviceId } }, audio: false }));
+  }
+
+  const working = results.find((result) => result.ok);
+  const camo = cameras.find((camera) => /camo|virtual|obs|epoccam/i.test(camera.label || ""));
+
+  write("");
+  if (working) {
+    write("verdict: a camera works — " + working.label);
+    verdict("good",
+      "<b>A camera works: " + working.label + ".</b><br>" +
+      (camo
+        ? "The virtual camera is visible, so the app can use it. Pick it from the camera button in the app."
+        : "No virtual camera was found, so this is probably a different (built-in) camera."));
+  } else {
+    write("verdict: nothing could be opened");
+    verdict("bad",
+      "<b>No camera could be opened.</b><br>" +
+      "That is a system setting rather than an app problem. Check the OS camera permission " +
+      "for your browser, and confirm any virtual camera software is actually running.");
+  }
+}
+
+async function copyReport() {
+  if (!lines.length) return;
+  try {
+    await navigator.clipboard.writeText(lines.join("\n"));
+    verdict("good", "Report copied.");
+  } catch (error) {
+    $("report").select();
+    document.execCommand("copy");
+  }
+}
+
+$("btnRun").addEventListener("click", run);
+$("btnCopy").addEventListener("click", copyReport);
+describeEnvironment();
+</script>
+</body>
+</html>
