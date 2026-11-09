@@ -4,10 +4,10 @@
    Navigation requests go to the network first so a code change is visible
    on the next reload; the cached copy is the fallback when offline.
    Static assets are served from the cache and refreshed in the background.
-   Google API traffic is never intercepted.
+   Only same-origin traffic is intercepted.
    ========================================================================= */
 
-const CACHE = "daily365-v3";
+const CACHE = "daily365-v4";
 
 const SHELL = [
   "./",

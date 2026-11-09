@@ -5,8 +5,9 @@
 
    Design notes
    ------------
-   * Everything is local-first. IndexedDB holds the photographs and numbers;
-     Google Drive is an optional mirror that is never required to use the app.
+   * Everything is local-first. IndexedDB holds the photographs and numbers.
+     Saving to Drive uses the phone's own share sheet, so the app never needs
+     Google credentials or permission to your Drive.
    * Day numbers are derived from a fixed start date, so a skipped day never
      renumbers the rest of the year.
    * Running totals are always recomputed from the full ledger after any
@@ -28,8 +29,6 @@
   const STORE = "entries";
   const SETTINGS_KEY = "daily365.settings.v1";
   const DRAFT_KEY = "daily365.draft.v1";
-  const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-  const DRIVE_FOLDER = "Daily 365";
 
   const DEFAULTS = {
     startDate: null,          // set on first run to today
@@ -37,9 +36,7 @@
     guides: true,
     ghost: true,
     mirror: true,
-    deviceId: "",
-    clientId: "",
-    autoDrive: false
+    deviceId: ""
   };
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -54,7 +51,6 @@
   let activeDeviceId = null;
   let facing = "user";
   let db = null;
-  let drive = { token: null, expiresAt: 0, folderId: null, client: null, ready: false };
   let busy = false;
 
   /* ---------------------------------------------------------- selectors */
@@ -87,8 +83,6 @@
     el.startDate = $("startDate");
     el.dateFormat = $("dateFormat");
     el.deviceName = $("deviceName");
-    el.clientId = $("clientId");
-    el.driveStatus = $("driveStatus");
     el.fileInput = $("fileInput");
     el.csvInput = $("csvInput");
     el.dialog = $("dialog");
@@ -141,10 +135,6 @@
 
   function fileNameFor(day, iso) {
     return `day-${pad(day, 3)}-${iso}.jpg`;
-  }
-
-  function fileForDownload(day, iso) {
-    return `daily365-${fileNameFor(day, iso)}`;
   }
 
   /* ------------------------------------------------------------- money */
@@ -702,7 +692,7 @@
 
   function setSaveEnabled(enabled) {
     $("btnSave").disabled = !enabled;
-    $("btnSaveDownload").disabled = !enabled;
+    $("btnSaveDrive").disabled = !enabled;
   }
 
   /* --------------------------------------------------- pre-save review */
@@ -795,10 +785,26 @@
 
   /* ------------------------------------------------------------- save */
 
-  async function saveDraft(alsoDownload) {
+  async function saveDraft(mode) {
     if (!draft || busy) return;
+    const share = mode === "drive";
     busy = true;
     setSaveEnabled(false);
+
+    // Already stored: hand the existing JPEG straight to the share sheet,
+    // with no dialogs in the way (keeps the user gesture intact).
+    if (share && draft.saved) {
+      try {
+        const outcome = await sharePhoto(draft.saved.blob, draft.saved.filename);
+        reportShare(outcome);
+      } catch (error) {
+        say(error.message || "Could not open the share sheet", 3600);
+      } finally {
+        busy = false;
+        setSaveEnabled(true);
+      }
+      return;
+    }
 
     try {
       const confirmed = await confirmMeta({ ...draft.meta });
@@ -829,7 +835,7 @@
       await recomputeTotals();
       entries = await readAllEntries();
 
-      if (alsoDownload) downloadBlob(recomposed.blob, fileForDownload(confirmed.day, confirmed.date));
+      draft.saved = { blob: recomposed.blob, filename };
 
       el.reviewImage.src = URL.createObjectURL(recomposed.blob);
       el.savedFile.textContent = filename;
@@ -841,10 +847,9 @@
       clearDraftInputs();
       await refreshAll();
 
-      if (settings.autoDrive && settings.clientId) {
-        uploadPhoto(record.blob, filename).catch((error) => {
-          say("Drive upload failed: " + error.message, 3600);
-        });
+      if (share) {
+        const outcome = await sharePhoto(recomposed.blob, filename);
+        reportShare(outcome);
       }
     } catch (error) {
       say(error.message || "Could not save", 3600);
@@ -1134,169 +1139,56 @@
     say(`Imported ${added} ${added === 1 ? "day" : "days"}${skipped ? `, skipped ${skipped}` : ""}`, 3200);
   }
 
-  /* ------------------------------------------------------ Google Drive */
+  /* ------------------------------------------------------- Save to Drive */
 
-  function loadGoogleIdentity() {
-    if (drive.ready) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-        drive.ready = true;
-        resolve();
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://accounts.google.com/gsi/client";
-      script.async = true;
-      script.onload = () => {
-        drive.ready = true;
-        resolve();
-      };
-      script.onerror = () => reject(new Error("Could not reach Google. Check your connection."));
-      document.head.appendChild(script);
-    });
-  }
+  /*
+     No OAuth, no client ID, no Drive permission. The JPEG is handed to the
+     operating system's share sheet; the user picks Google Drive (or anything
+     else) and chooses the folder themselves. If the browser cannot share
+     files, we fall back to the system save dialog, then to a download.
+  */
 
-  async function connectDrive() {
-    const clientId = (settings.clientId || "").trim();
-    if (!clientId) {
-      await ask({
-        title: "Client ID needed",
-        body:
-          "Create an OAuth client in your Google Cloud project, then paste its client ID into the field above.\n\n" +
-          "Authorised JavaScript origin: this page's origin.\n" +
-          "Scope requested: drive.file.",
-        actions: [{ id: "ok", label: "Understood", style: "primary" }]
-      });
-      return;
-    }
+  async function sharePhoto(blob, filename) {
+    const file = new File([blob], filename, { type: "image/jpeg" });
 
-    try {
-      await loadGoogleIdentity();
-    } catch (error) {
-      el.driveStatus.textContent = error.message;
-      return;
-    }
-
-    if (drive.client) {
-      drive.client.requestAccessToken({ prompt: "" });
-      return;
-    }
-
-    drive.client = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: DRIVE_SCOPE,
-      callback: async (response) => {
-        if (response.error) {
-          el.driveStatus.textContent = "Not connected: " + response.error;
-          return;
-        }
-        drive.token = response.access_token;
-        drive.expiresAt = Date.now() + (response.expires_in ? response.expires_in * 1000 : 3500000);
-        el.driveStatus.textContent = "Connected. Only photographs this app created are visible to it.";
-        say("Drive connected");
-        try {
-          await ensureDriveFolder();
-        } catch (error) {
-          el.driveStatus.textContent = "Connected, but the folder could not be prepared: " + error.message;
-        }
-      }
-    });
-
-    drive.client.requestAccessToken({ prompt: "" });
-  }
-
-  function driveReady() {
-    return Boolean(drive.token) && Date.now() < drive.expiresAt - 60000;
-  }
-
-  async function ensureDriveFolder() {
-    if (drive.folderId) return drive.folderId;
-    if (!driveReady()) throw new Error("Drive is not connected");
-
-    const query = encodeURIComponent(
-      `name='${DRIVE_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
-    );
-    const found = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)&spaces=drive`,
-      { headers: { Authorization: "Bearer " + drive.token } }
-    );
-
-    if (found.ok) {
-      const payload = await found.json();
-      if (payload.files && payload.files.length) {
-        drive.folderId = payload.files[0].id;
-        return drive.folderId;
-      }
-    }
-
-    const created = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + drive.token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name: DRIVE_FOLDER,
-        mimeType: "application/vnd.google-apps.folder"
-      })
-    });
-
-    if (!created.ok) throw new Error("Folder could not be created (" + created.status + ")");
-    const payload = await created.json();
-    drive.folderId = payload.id;
-    return drive.folderId;
-  }
-
-  async function uploadPhoto(blob, filename) {
-    if (!driveReady()) throw new Error("Drive is not connected");
-    const folderId = await ensureDriveFolder();
-    const boundary = "daily365-" + Math.random().toString(36).slice(2);
-
-    const body = new Blob([
-      "--" + boundary + "\r\n",
-      "Content-Type: application/json; charset=UTF-8\r\n\r\n",
-      JSON.stringify({ name: filename, parents: [folderId] }) + "\r\n",
-      "--" + boundary + "\r\n",
-      "Content-Type: image/jpeg\r\n\r\n",
-      blob,
-      "\r\n--" + boundary + "--"
-    ], { type: "multipart/related; boundary=" + boundary });
-
-    const response = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
-      {
-        method: "POST",
-        headers: { Authorization: "Bearer " + drive.token },
-        body
-      }
-    );
-
-    if (!response.ok) throw new Error("upload failed (" + response.status + ")");
-    return response.json();
-  }
-
-  async function uploadAll() {
-    if (!driveReady()) {
-      say("Connect Drive first");
-      return;
-    }
-    const pendingUploads = entries.filter((entry) => entry.blob);
-    if (!pendingUploads.length) {
-      say("There is nothing to upload");
-      return;
-    }
-
-    let sent = 0;
-    for (const entry of pendingUploads) {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await uploadPhoto(entry.blob, entry.filename || fileNameFor(entry.day, entry.date));
-        sent++;
+        await navigator.share({ files: [file], title: filename });
+        return "shared";
       } catch (error) {
-        say(`Stopped after ${sent}: ${error.message}`, 4200);
-        return;
+        if (error && error.name === "AbortError") return "cancelled";
       }
     }
-    say(`Sent ${sent} ${sent === 1 ? "photograph" : "photographs"} to Drive`, 3200);
+
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "JPEG image", accept: { "image/jpeg": [".jpg"] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return "saved";
+      } catch (error) {
+        if (error && error.name === "AbortError") return "cancelled";
+      }
+    }
+
+    downloadBlob(blob, filename);
+    return "downloaded";
+  }
+
+  function reportShare(outcome) {
+    if (outcome === "shared") {
+      say("Saved. Pick Google Drive in the share sheet, then choose a folder.", 4200);
+    } else if (outcome === "saved") {
+      say("Saved through the file picker.", 3200);
+    } else if (outcome === "downloaded") {
+      say("Saved to downloads — this browser cannot open a share sheet.", 4200);
+    } else if (outcome === "cancelled") {
+      say("Share cancelled. The photo is still saved on this device.", 3600);
+    }
   }
 
   /* ---------------------------------------------------------- switches */
@@ -1383,8 +1275,8 @@
       draft = null;
       showView("view-camera");
     });
-    $("btnSave").addEventListener("click", () => saveDraft(false));
-    $("btnSaveDownload").addEventListener("click", () => saveDraft(true));
+    $("btnSave").addEventListener("click", () => saveDraft("save"));
+    $("btnSaveDrive").addEventListener("click", () => saveDraft("drive"));
 
     // settings
     el.startDate.addEventListener("change", (event) => {
@@ -1406,15 +1298,6 @@
     bindSwitch($("swMirror"), "mirror", () => {
       el.camera.classList.toggle("is-unmirrored", !settings.mirror);
     });
-    bindSwitch($("swAutoDrive"), "autoDrive");
-
-    el.clientId.addEventListener("change", (event) => {
-      settings.clientId = event.target.value.trim();
-      persistSettings();
-    });
-
-    $("btnDrive").addEventListener("click", connectDrive);
-    $("btnUploadAll").addEventListener("click", uploadAll);
 
     $("btnExport").addEventListener("click", exportCSV);
     $("btnImport").addEventListener("click", () => el.csvInput.click());
@@ -1484,11 +1367,9 @@
   function refreshSettingsInputs() {
     el.startDate.value = settings.startDate;
     el.dateFormat.value = settings.dateFormat;
-    el.clientId.value = settings.clientId;
     setSwitch($("swGuides"), settings.guides);
     setSwitch($("swGhost"), settings.ghost);
     setSwitch($("swMirror"), settings.mirror);
-    setSwitch($("swAutoDrive"), settings.autoDrive);
   }
 
   /* --------------------------------------------------------------- boot */

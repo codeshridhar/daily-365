@@ -2,7 +2,7 @@
 
 One photograph a day, stamped with the date, the day number, what you earned and
 what you spent, plus running totals. Photographs are stored on the device in
-IndexedDB; Google Drive is an optional mirror.
+IndexedDB; saving to Google Drive is a share-sheet hand-off you control.
 
 No build step. No framework. No dependencies. Three files and a stylesheet.
 
@@ -74,6 +74,7 @@ Open the https URL it prints on your phone, then add it to the home screen
 | Capture | The frame is cropped to 3:4 and stamped at 1080 × 1440 |
 | Review | Retake, Save, or Save and download a copy |
 | Save | Written to IndexedDB, totals recomputed, entry appears in the Ledger |
+| Save to Drive | Saves here, then opens the share sheet so you pick Drive and the folder |
 
 The app will stop and ask you about: a day that already exists (replace / add /
 cancel), a gap in the sequence, both amounts being zero, and an earn figure more
@@ -93,39 +94,27 @@ same coordinates. That fixes the days you drifted.
 
 ---
 
-## Google Drive (optional)
+## Saving to Google Drive
 
-The app asks for **`drive.file`**, not full Drive access. That scope is
-deliberately narrow: the app can create files, and can only see files it created
-itself. It cannot read your existing Drive, Gmail, or Photographs. If the token
-leaked, the rest of your Drive would still be unreachable, because the
-permission does not exist.
+There is **no Google login, client ID, or Drive permission** in this app. Instead:
 
-There is no server. The browser talks to Google directly.
+1. Capture and review the photograph.
+2. Tap **Save to Drive**.
+3. The photo is stored on the device first, then your phone's **share sheet** opens.
+4. Choose **Google Drive** (or any other app) and pick the folder yourself.
 
-### One-time setup
+The filename is generated automatically — `day-042-2026-11-07.jpg` — so it sorts
+cleanly in Drive. Because the app never receives a token, it cannot read anything
+in your Drive: the OS does the hand-off, not the app.
 
-1. <https://console.cloud.google.com> → create a project.
-2. **APIs & Services → Library** → enable **Google Drive API**.
-3. **APIs & Services → OAuth consent screen** → External → fill in the app name
-   and your email → add yourself under **Test users**.
-4. **Credentials → Create credentials → OAuth client ID → Web application**.
-5. Under **Authorised JavaScript origins**, add the exact origin you will serve
-   from, e.g. `http://127.0.0.1:8080` and `http://localhost:5500`. No trailing
-   slash, no path. `https://` origins must match too.
-6. Copy the client ID into **Settings → Google Drive** in the app.
-
-Then press **Connect Drive**. Google will show "Google hasn't verified this app"
-because it is your own unverified project — click **Advanced → Go to (app)**.
-Photographs land in a Drive folder called `Daily 365`.
+On browsers without file sharing, the same button opens the system save dialog,
+and falls back to a normal download.
 
 Notes worth knowing:
 
-- While the OAuth app is in **Testing** mode Google expires the refresh token
-  after **7 days**, so you will be asked to reconnect weekly. Publishing the app
-  (still unverified) removes that.
-- Tokens are held in memory only. They are gone when you reload the page.
-- `Drive` uploads happen on Save, and only if **Upload automatically** is on.
+- Nothing is uploaded automatically. You choose every share.
+- Data still lives on this device in IndexedDB; the share is a copy, not a sync.
+- Two phones each keep their own ledger. Move numbers between them with the CSV.
 
 ---
 
@@ -170,11 +159,12 @@ python3 -m playwright install chromium
 cd daily-365
 python3 -m http.server 8080 &
 python3 tools/e2e_test.py
+python3 tools/drive_flow_test.py
 ```
 
 Chromium is launched with a fake video device, so the real capture path runs:
 compose, stamp, encode, persist, recompute, export. The suite also checks layout
-at three phone viewport sizes. Last run: **59 passed, 0 failed**.
+at three phone viewport sizes. Last run: **60 passed, 0 failed**.
 
 It writes `tools/screens/` — camera, review, ledger, settings, and a real stamped
 JPEG you can inspect.
@@ -208,6 +198,6 @@ usually report no facing direction, which is why the last attempt exists.
 - Photographs live in this browser's storage. Clearing site data deletes them.
   Export the CSV, and keep the JPEGs if you care about them.
 - There is no sync between devices. Move data with the CSV.
-- Drive upload is sequential; a few hundred photographs is a slow first sync.
+- Saving to Drive is a share-sheet hand-off, not a background sync.
 - The video is not built yet. `ffmpeg` with a face-landmark re-crop pass is the
   intended approach.

@@ -106,6 +106,8 @@ async def main():
         check("output is 1440 tall", dims["h"] == 1440, str(dims["h"]))
         check("output is JPEG", dims["type"] == "image/jpeg", dims["type"])
         check("output carries real bytes", dims["size"] > 40000, str(dims["size"]))
+        check("save-to-drive button is offered",
+              await page.locator("#btnSaveDrive").count() == 1)
         review_note = await page.locator("#reviewCaption").inner_text()
         check("review names the day and amounts",
               "Day 001" in review_note and "2,000" in review_note, review_note)

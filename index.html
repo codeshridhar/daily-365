@@ -135,9 +135,13 @@
         <button class="btn quiet" id="btnRetake">Retake</button>
         <button class="btn" id="btnSave">Save</button>
       </div>
-      <button class="btn quiet slim" id="btnSaveDownload" style="margin-top:8px">
-        Save and download a copy
+      <button class="btn quiet slim" id="btnSaveDrive" style="margin-top:8px">
+        Save to Drive
       </button>
+      <p class="caption">
+        Opens your phone's share sheet. Pick Google Drive there, then choose any folder yourself —
+        the app never asks for a Google login.
+      </p>
       <p class="caption" id="reviewCaption"></p>
     </section>
 
@@ -217,31 +221,16 @@
         <input type="file" id="csvInput" accept=".csv,text/csv" class="visually-hidden">
       </div>
 
-      <div class="rule">Google Drive — optional</div>
+      <div class="rule">Saving to Drive</div>
       <div class="panel">
-        <div class="field-row" style="align-items:stretch; flex-direction:column; gap:8px">
-          <div class="meta">
-            <div class="name">OAuth client ID</div>
-            <div class="note">
-              From your own Google Cloud project. The app requests <code>drive.file</code> only, so it can
-              see nothing except photographs it created itself.
-            </div>
-          </div>
-          <input type="text" id="clientId" class="wide" spellcheck="false"
-                 placeholder="xxxx.apps.googleusercontent.com">
-        </div>
-        <div class="stack" style="margin-top:12px">
-          <button class="btn quiet slim" id="btnDrive">Connect Drive</button>
-          <button class="btn quiet slim" id="btnUploadAll">Upload photos not yet sent</button>
-        </div>
-        <div class="field-row" style="margin-top:10px">
-          <div class="meta">
-            <div class="name">Upload automatically</div>
-            <div class="note">After you press Save — never before.</div>
-          </div>
-          <button class="switch" id="swAutoDrive" role="switch" aria-checked="false" aria-label="Upload automatically"></button>
-        </div>
-        <p class="caption" id="driveStatus">Not connected.</p>
+        <p class="caption">
+          On the review screen, <strong>Save to Drive</strong> stores the photo here first, then opens
+          your phone's share sheet. Choose Google Drive there and pick any folder.
+        </p>
+        <p class="caption">
+          There is no Google login, no client ID and no Drive permission in this app, so it cannot
+          read anything else in your Drive.
+        </p>
       </div>
 
       <div class="rule">Danger</div>
