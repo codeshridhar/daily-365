@@ -7,7 +7,7 @@
    Only same-origin traffic is intercepted.
    ========================================================================= */
 
-const CACHE = "daily365-v4";
+const CACHE = "daily365-v5";
 
 const SHELL = [
   "./",

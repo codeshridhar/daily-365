@@ -164,7 +164,7 @@ python3 tools/drive_flow_test.py
 
 Chromium is launched with a fake video device, so the real capture path runs:
 compose, stamp, encode, persist, recompute, export. The suite also checks layout
-at three phone viewport sizes. Last run: **60 passed, 0 failed**.
+at three phone viewport sizes. Last run: **64 passed, 0 failed**.
 
 It writes `tools/screens/` — camera, review, ledger, settings, and a real stamped
 JPEG you can inspect.

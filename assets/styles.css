@@ -169,6 +169,19 @@ main {
 /* framing guides — drawn, never baked into the file */
 .guides { position: absolute; inset: 0; pointer-events: none; }
 .guides[hidden] { display: none; }
+
+/* rule-of-thirds grid and guides carry a dark halo so they stay legible
+   over bright scenes as well as dark ones */
+.guides .grid i {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.8);
+}
+.guides .grid .v1 { left: 33.333%; top: 0; bottom: 0; width: 1px; }
+.guides .grid .v2 { left: 66.666%; top: 0; bottom: 0; width: 1px; }
+.guides .grid .h1 { top: 33.333%; left: 0; right: 0; height: 1px; }
+.guides .grid .h2 { top: 66.666%; left: 0; right: 0; height: 1px; }
+
 .guides .oval {
   position: absolute;
   left: 50%;
@@ -176,31 +189,38 @@ main {
   width: 50%;
   height: 54%;
   transform: translateX(-50%);
-  border: 1px dashed rgba(242, 237, 228, 0.3);
+  border: 2px dashed rgba(255, 255, 255, 0.7);
   border-radius: 50%;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.28);
 }
 .guides .eyeline {
   position: absolute;
   left: 7%;
   right: 7%;
   top: 27%;
-  border-top: 1px dashed rgba(216, 166, 87, 0.55);
+  border-top: 2px solid rgba(236, 186, 100, 0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
 }
 .guides .eyeline span {
   position: absolute;
   right: 0;
-  top: -13px;
+  top: -14px;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 2px;
   font-family: var(--mono);
   font-size: 8px;
   letter-spacing: 0.14em;
-  color: rgba(216, 166, 87, 0.85);
+  color: rgba(246, 203, 128, 0.98);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 .guides .centre {
   position: absolute;
   left: 50%;
   top: 0;
   bottom: 0;
-  border-left: 1px dashed rgba(242, 237, 228, 0.14);
+  border-left: 1px dashed rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 
 .vf-bar {

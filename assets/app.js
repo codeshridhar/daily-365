@@ -1262,11 +1262,17 @@
       settings.guides = !settings.guides;
       persistSettings();
       refreshGhost();
+      say(settings.guides ? "Framing guides on" : "Framing guides off");
     });
     $("btnGhost").addEventListener("click", () => {
       settings.ghost = !settings.ghost;
       persistSettings();
       refreshGhost();
+      say(
+        settings.ghost
+          ? (entries.length ? "Ghost overlay on" : "Ghost on — it appears once yesterday's photo exists")
+          : "Ghost overlay off"
+      );
     });
 
     // review

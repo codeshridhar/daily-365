@@ -92,6 +92,22 @@ async def main():
             "document.getElementById('viewfinder').classList.contains('is-dead')")
         check("viewfinder is not in the failed state", dead is False)
 
+        guides = await page.evaluate(
+            """() => {
+                 const g = document.getElementById('guides');
+                 const marks = g.querySelectorAll('.grid i');
+                 return {
+                   visible: !g.hidden,
+                   grid: marks.length,
+                   oval: !!g.querySelector('.oval'),
+                   lineWidth: marks.length ? getComputedStyle(marks[0]).width : ''
+                 };
+               }""")
+        check("framing guides are visible", guides["visible"] is True, str(guides))
+        check("rule-of-thirds grid is drawn", guides["grid"] == 4, str(guides["grid"]))
+        check("face oval is drawn", guides["oval"] is True)
+        check("grid lines have a real width", guides["lineWidth"] in ("1px", "1.5px", "2px"), guides["lineWidth"])
+
         print("\n== 6. Capture produces a stamped 1080x1440 JPEG ==")
         await page.click("#btnCapture")
         await page.wait_for_selector("#view-review.is-active", timeout=5000)
